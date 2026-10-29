@@ -478,6 +478,8 @@ kfm.stipe.site <- validated_merge(kfm.stipe, Sites2, by = c("site_id"), warn_thr
 kfm.stipe.site <- kfm.stipe.site %>%
   dplyr::mutate(date = as.Date(SurveyDate, format = "%m/%d/%Y"))
 kfm.stipe.site$year <- year(kfm.stipe.site$date)
+kfm.stipe.site$month <- month(kfm.stipe.site$date)
+if (anyNA(kfm.stipe.site$month)) stop("KFM stipe survey dates must be recorded.")
 
 # Remove excluded KFM sites (from EXCLUDED_KFM_SITES constant)
 kfm.stipe.site <- kfm.stipe.site[!(kfm.stipe.site$site_id %in% EXCLUDED_KFM_SITES), ]
@@ -500,9 +502,8 @@ kfm.stipe.ave <- assign_time_from_site_table(kfm.stipe.ave, Sites2)
 # ===========================================================================
 # Section 8: Calculate Macrocystis biomass via bootstrap resampling
 # ===========================================================================
-# For Macrocystis, the bootstrap resamples stipe counts per individual from the
-# raw stipe count data, then applies the bio_macro() allometric function to
-# convert stipe counts to biomass (grams wet weight).
+# Dated stipe counts are converted to dry foliar mass before resampling whole
+# records. Each count retains its original survey-month coefficient.
 
 MACRO <- subset(kfm.sum, taxon_name == "Macrocystis pyrifera")
 # Remove Old Anacapa MPA and the SMCA (listed in EXCLUDED_MPAS)
@@ -515,10 +516,21 @@ cat("  KFM Macrocystis bootstrap:", nrow(u), "site-year combinations\n")
 kfm.stipe.OG <- kfm.stipe.site
 
 # Cache bootstrap results to avoid re-running the slow loop
-.cache_kfm_macro <- here::here("data", "cache", "kfm_macro_bootstrap.rds")
+.cache_kfm_macro <- here::here("data", "cache", "kfm_macro_bootstrap_sbc11215.rds")
+.macro_fingerprint <- c(
+  calibration = unname(tools::md5sum(KELP_CALIBRATION_CSV)),
+  stipes = unname(tools::md5sum(here::here("data", "MBON", "KFM_Macrocystis_RawData_1984-2023.csv"))),
+  abundance = unname(tools::md5sum(here::here("data", "MBON", "SBCMBON_kelp_forest_integrated_quad_and_swath_20231022.csv"))),
+  mapping = unname(tools::md5sum(here::here("data", "MBON", "SBCMBON_kelp_forest_site_geolocation_20210120_KFM_LTER.csv"))),
+  helpers = unname(tools::md5sum(here::here("code", "R", "01_utils.R"))),
+  processing = unname(tools::md5sum(here::here("code", "R", "05_kfm_processing.R"))),
+  seed = as.character(SEED_KFM_MACRO), iterations = as.character(N_BOOTSTRAP_RESAMPLES))
 if (file.exists(.cache_kfm_macro) && !force_boot) {
   cat("    Loading cached KFM Macrocystis bootstrap results...\n")
   Macro.site <- safe_read_rds(.cache_kfm_macro)
+  if (!identical(attr(Macro.site, "monthly_calibration_fingerprint"), .macro_fingerprint)) {
+    Macro.site <- NULL
+  }
   if (is.null(Macro.site)) {
     cat("    Cache invalid, will recompute...\n")
   } else {
@@ -566,24 +578,10 @@ if (!exists("Macro.site") || is.null(Macro.site)) {
       if (n != 0 & length(t2) != 0) {
         # Kelp found on transect and in stipe data: bootstrap stipe counts
         a <- kfm.stipe.site[t2, ]
-        s <- data.frame(matrix(NA, nrow = n_boot, ncol = n))
-        for (k in seq_len(n_boot)) {
-          s[k, ] <- sample(a$Stipe_Count, n, replace = TRUE)
-        }
-        # Apply bio_macro() allometric function to convert stipe counts to biomass.
-        # Use everything() (not starts_with("X")): at this point `s` holds only the
-        # n resampled-stipe columns, and when n == 1 R names that single column
-        # "matrix.NA..ncol...1." (NOT "X1"), so starts_with("X") silently matched
-        # zero columns and biomass collapsed to the raw stipe count for single-plant
-        # (ind == 1) site-years. (Fixed 2026-06 audit.)
-        s_bio <- s %>%
-          dplyr::mutate(dplyr::across(dplyr::everything(), ~ bio_macro(.)))
-        s_bio <- s_bio %>%
-          dplyr::mutate(sum = rowSums(.))
-        s <- s %>%
-          dplyr::mutate(sum = rowSums(.))
-        aveB <- mean(s_bio$sum)
-        aveD <- mean(s$sum)
+        draws <- bootstrap_macro_monthly(a$Stipe_Count, a$month, n, n_boot)
+        # Resample paired records, not stipe values detached from their months.
+        aveB <- draws$biomass
+        aveD <- draws$count
 
         data.frame(site = u$site_id[i], CA_MPA_Name_Short = u$CA_MPA_Name_Short[i],
                    site_status = u$status[i],
@@ -624,6 +622,7 @@ if (!exists("Macro.site") || is.null(Macro.site)) {
 
   # Combine all results at once (efficient)
   Macro.site <- do.call(rbind, results_list)
+  attr(Macro.site, "monthly_calibration_fingerprint") <- .macro_fingerprint
 
   # Save cache
   dir.create(dirname(.cache_kfm_macro), recursive = TRUE, showWarnings = FALSE)
@@ -839,9 +838,10 @@ KFM.join.ave <- assign_ba_from_site_table(KFM.join.ave, Sites2)
 # Section 13: Process KFM fish data (sheephead from MBON fish file)
 # ===========================================================================
 # KFM sheephead (Semicossyphus pulcher) data comes from a separate MBON fish file.
-# Unlike PISCO, KFM does NOT record individual fish sizes, only counts per
-# transect, so the KFM sheephead pipeline produces density only. Biomass is
-# unavailable for KFM sheephead and is excluded from biomass-side analyses.
+# This MBON fish input contains counts, not individual lengths. Separate KFM
+# fish-size surveys exist; their compatibility and coverage are evaluated in
+# the analysis repository by audit_kfm_size_feasibility.py. The current pipeline
+# uses visual-transect counts for KFM sheephead density and does not estimate biomass.
 # KFM uses two fish survey methods (per Davis et al. 1997 KFM Handbook
 # Vol 1, p.45-48):
 #   - "visualfish" (Visual Fish Transect): since 1985. Transect dimensions
@@ -869,8 +869,8 @@ mbon.fish <- subset(mbon.fish, data_source == "kfm")
 cat("  KFM fish data loaded:", nrow(mbon.fish), "rows\n")
 
 # Subset sheephead (Semicossyphus pulcher) using KFM project taxon IDs:
-#   t-k-127 = S. pulcher from visual fish counts
-#   t-k-233 = S. pulcher from roving diver fish counts
+#   t-k-233 = S. pulcher from visual fish counts
+#   t-k-127 = S. pulcher from roving diver fish counts
 mbon.fish.spul <- subset(mbon.fish, proj_taxon_id == "t-k-127" | proj_taxon_id == "t-k-233")
 
 # Date conversion

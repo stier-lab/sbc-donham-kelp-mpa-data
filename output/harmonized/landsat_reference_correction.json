@@ -1,0 +1,64 @@
+{
+  "release": "landsat_empty_reference_slots_2026_10_16",
+  "applied": true,
+  "removed_slots": [
+    {
+      "MPA": "Skunk Pt SMR",
+      "status": "reference",
+      "rep": 2,
+      "reason": "Empty Ref_2 pixel set in recovered MPA_Ref_Locations.xlsx"
+    },
+    {
+      "MPA": "Santa Barbara Island SMR",
+      "status": "reference",
+      "rep": 2,
+      "reason": "Empty Ref_2 pixel set in recovered MPA_Ref_Locations.xlsx"
+    },
+    {
+      "MPA": "South La Jolla SMR",
+      "status": "reference",
+      "rep": 2,
+      "reason": "Empty Ref_2 pixel set in recovered MPA_Ref_Locations.xlsx"
+    },
+    {
+      "MPA": "Cabrillo SMR",
+      "status": "reference",
+      "rep": 2,
+      "reason": "Empty Ref_2 pixel set in recovered MPA_Ref_Locations.xlsx"
+    },
+    {
+      "MPA": "Point Dume SMCA",
+      "status": "reference",
+      "rep": 2,
+      "reason": "Empty Ref_2 pixel set in recovered MPA_Ref_Locations.xlsx"
+    },
+    {
+      "MPA": "Point Dume SMR",
+      "status": "reference",
+      "rep": 2,
+      "reason": "Empty Ref_2 pixel set in recovered MPA_Ref_Locations.xlsx"
+    }
+  ],
+  "source_md5": "503ee8bc832a8abef46cb0bbe8d9d895",
+  "registry_md5": "ba6eb2904bf8b2bdd568495e8ea0ef14",
+  "source_rows": 60,
+  "retained_source_rows": 54,
+  "affected_mpas": ["Skunk Pt SMR", "Santa Barbara Island SMR", "South La Jolla SMR", "Cabrillo SMR", "Point Dume SMCA", "Point Dume SMR"],
+  "old_rr_rows": 719,
+  "new_rr_rows": 718,
+  "old_md5": {
+    "rr": "9e66b58886e848075d0ddcc24e76a829",
+    "index": "0bc47dea0cfeda508de934063c7c9817"
+  },
+  "files": {
+    "harmonized_landsat_rr.csv": {
+      "md5": "aa1080e0127e5cacfb357ed073fe53ee",
+      "rows": 718
+    },
+    "harmonized_landsat_annual_index.csv": {
+      "md5": "01e3709a353cf63d0c4390fe85f6178f",
+      "rows": 1436
+    }
+  },
+  "diver_inputs_unchanged": true
+}

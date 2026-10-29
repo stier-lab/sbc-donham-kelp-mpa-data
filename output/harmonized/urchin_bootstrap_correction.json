@@ -1,0 +1,40 @@
+{
+  "release": "urchin_singleton_sampling_2026_10_18",
+  "applied": true,
+  "scope": {
+    "programmes": [
+      "PISCO",
+      "LTER"
+    ],
+    "taxa": [
+      "Mesocentrotus franciscanus",
+      "Strongylocentrotus purpuratus"
+    ],
+    "response": "Bio"
+  },
+  "sampling": "Sample vector positions; replace only singleton cached biomass totals, preserving non-singleton draws",
+  "files": {
+    "harmonized_raw_responses.csv": {
+      "rows": 6280,
+      "changed_rows": 17,
+      "changes": {
+        "LTER/Bio": 10,
+        "PISCO/Bio": 7
+      },
+      "non_target_rows_preserved": 5668,
+      "before_md5": "ec80b1522b88b81736f28810274003f9",
+      "after_md5": "95db0b520f097497cc6f189a62329dec"
+    },
+    "harmonized_response_ratios.csv": {
+      "rows": 3341,
+      "changed_rows": 48,
+      "changes": {
+        "LTER/Bio": 31,
+        "PISCO/Bio": 17
+      },
+      "non_target_rows_preserved": 3035,
+      "before_md5": "43cbc08a104d22e6bfafc1b38ba8ac13",
+      "after_md5": "4ca8444a3bf4ab0fc720594cde63307e"
+    }
+  }
+}

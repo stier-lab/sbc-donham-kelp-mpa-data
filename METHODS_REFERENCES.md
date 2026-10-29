@@ -5,6 +5,20 @@
 
 **Companion data-source inventory:** `Donham-Stier-CA-MPA-Data-2026/DATA_SOURCES.md` is the parallel single-source-of-truth document inside the data-processing repo, documenting all 15 input data files (citations, DOIs, EDI package IDs, row counts, schema, and which script consumes each). This Methods doc focuses on the manuscript-citation perspective. The in-repo `DATA_SOURCES.md` focuses on the pipeline perspective.
 
+**2026-10-12 kelp-calibration update:** SBC `knb-lter-sbc.112.15` Table 5
+is now verified from the exact public CSV and EML, including its provider MD5.
+Model 1 contains twelve zero-intercept slopes for dry foliar biomass, not one
+constant or six site-specific slopes. Following Adrian's decision, production
+now applies these recorded-month slopes before annual averaging in all three
+diver programmes. KFM keeps count/month records paired through resampling and
+retains site-year abundance matching. The fixed 0.08 conversion was retired.
+The dated analysis report `docs/KELP_CALIBRATION_QA_2026-10-12.md` and source
+snapshot `data/external/sbc11215/` in the analysis repository supersede the
+older unverified-value, paywall-only and provisional 0.092 wording below.
+Current implementation and refit evidence are in the analysis repository's
+`docs/MONTHLY_KELP_REFIT_2026-10-12.md`. Older investigations below are retained
+as history and are not the current coefficient or citation instructions.
+
 ---
 
 ## Audit summary (closed 2026-05-04)
@@ -149,7 +163,7 @@ Mechanism: two divers each lay a 10 m perpendicular tape from the main transect,
  *Most explicit transect description.* Verbatim: "12 'benthic' transects (30 × 2 m) are surveyed at each site between June and August to quantify densities of invertebrates and macroalgae… Sea stars and purple urchins greater than 2.5 cm in diameter and lobsters of all sizes are also counted."
 
 - **Hamilton, S.L. & Caselle, J.E. (2015).** Exploitation and recovery of a sea urchin predator has implications for the resilience of southern California kelp forests. *Proc. R. Soc. B* 282: 20141817. https://doi.org/10.1098/rspb.2014.1817
- *Cite for the urchin 25 mm threshold and lobster predation context.*
+ *Primary sheephead length-weight source: Methods p. 2, W(g) = 0.0144 x TL(cm)^3.04, n = 499, R-squared = 0.98. Used by both PISCO and LTER; the original PISCO lookup is retained with a documented in-memory override.*
 
 - **Rassweiler, A. et al. (2020).** Roving divers surveying fish in fixed areas capture similar patterns in biogeography but different estimates of density when compared with belt transects. *Frontiers in Marine Science* 7: 272. https://doi.org/10.3389/fmars.2020.00272
  *Most explicit description of the 3-level fish design (BOT/MID/CAN).* Verbatim: "A diver at the bottom lays the transect line while counting fish within 2 m of the substrate, while another diver swims above, at roughly half the depth of the bottom diver, counting fish in the midwater. When kelp canopy is present, a third level is surveyed in the kelp canopy."
@@ -282,7 +296,7 @@ For the manuscript Methods, this is the recommended minimal citation stack:
 - Macrocystis: Rassweiler et al. 2018 *Ecology* (`ecy.2440`).
 - Sea urchins: Ebert 2010 *Sea Urchins: Biology and Ecology* (Academic Press), as calibrated for SBC LTER.
 - Lobster: Barsky 2001 *CDFG Lobster Assessment* (allometric), as calibrated for SBC LTER.
-- Sheephead: Cowen 1990 *Environmental Biology of Fishes*, as calibrated for SBC LTER.
+- Sheephead: Hamilton & Caselle 2015 *Proceedings of the Royal Society B*, DOI 10.1098/rspb.2014.1817, Methods p. 2; W(g) = 0.0144 x TL(cm)^3.04 for PISCO and LTER.
 - Fish length-weight coefficients: FishBase (Froese & Pauly, www.fishbase.org), compiled in the PISCO species attribute table.
 
 **Landsat kelp**

@@ -1,0 +1,36 @@
+{
+  "release": "lobster_singleton_sampling_2026_10_18",
+  "applied": true,
+  "scope": {
+    "programme": "PISCO",
+    "taxon": "Panulirus interruptus",
+    "response": "Bio"
+  },
+  "sampling": "Sample vector positions, not singleton numeric values; only singleton cached biomass replaced",
+  "a": 0.001352821,
+  "b": 2.913963113,
+  "length_unit": "mm",
+  "mass_unit": "g",
+  "files": {
+    "harmonized_raw_responses.csv": {
+      "rows": 6280,
+      "changed_rows": 6,
+      "changes": {
+        "PISCO/Bio": 6
+      },
+      "non_target_rows_preserved": 6218,
+      "before_md5": "c817b10fac60d714be510fc8547a2685",
+      "after_md5": "ec80b1522b88b81736f28810274003f9"
+    },
+    "harmonized_response_ratios.csv": {
+      "rows": 3341,
+      "changed_rows": 31,
+      "changes": {
+        "PISCO/Bio": 31
+      },
+      "non_target_rows_preserved": 3310,
+      "before_md5": "a0654cdb05e8fccfd58ab1bd6b13b4c9",
+      "after_md5": "43cbc08a104d22e6bfafc1b38ba8ac13"
+    }
+  }
+}

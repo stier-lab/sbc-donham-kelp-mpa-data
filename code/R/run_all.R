@@ -234,7 +234,8 @@ check_objects(c("All.RR.sub.trans", "All.Resp.sub"), "07")
 ## Validate exports ################################################################################
 ####################################################################################################
 
-harmonized_dir <- here::here("output", "harmonized")
+harmonized_dir <- Sys.getenv("DONHAM_HARMONIZED_OUTPUT",
+                            unset = here::here("output", "harmonized"))
 expected_files <- c("harmonized_response_ratios.csv", "harmonized_raw_responses.csv",
                     "harmonized_landsat_rr.csv", "harmonized_site_metadata.csv",
                     "checksums.md5")

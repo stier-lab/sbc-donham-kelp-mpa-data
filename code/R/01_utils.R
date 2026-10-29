@@ -142,7 +142,8 @@ assign_ba_from_site_table <- function(df, site_table, mpa_col = "CA_MPA_Name_Sho
 #'   NOTE: PISCO raw data stores carapace length in cm; the conversion to mm
 #'   happens upstream in 04_pisco_processing.R (size * 10).
 #' @return Numeric vector of biomass estimates (grams).
-#' @source SBC LTER allometric calibration (cf. Barsky 2001, CDFG Lobster Assessment).
+#' @source SBC-LTER biomass coefficient package, version 3, PAIN row (2021),
+#'   doi:10.6073/pasta/0fe9233dabe35df5d61fb3b07f8fb51e.
 bio_lobster <- function(size) {
   0.001352821 * (size) ^ 2.913963113
 }
@@ -175,16 +176,36 @@ bio_purpurch <- function(size) {
 #'   using a power-law relationship: W = a * L^b.
 #' @param size_cm Numeric vector of total lengths (cm).
 #' @return Numeric vector of biomass estimates (grams).
-#' @source SBC LTER allometric calibration (cf. Cowen 1990, Env. Biol. Fish.).
+#' @source Hamilton & Caselle (2015), doi:10.1098/rspb.2014.1817, Methods p. 2.
 bio_sheephead <- function(size_cm) {
   SHEEPHEAD_BIOMASS_ALLOMETRIC_A * (size_cm) ^ SHEEPHEAD_BIOMASS_ALLOMETRIC_B
+}
+
+# Override only the in-memory SPUL row; never rewrite the provider's CSV.
+apply_sheephead_allometry <- function(attributes) {
+  fields <- c("WL_a", "WL_b", "WL_W_units", "WL_L_units",
+              "WL_input_length", "source_LW_LC", "WL_Reference_Notes")
+  if (!all(c("pisco_classcode", fields) %in% names(attributes))) {
+    stop("Fish attribute table lacks required allometry columns.")
+  }
+  i <- which(attributes$pisco_classcode == "SPUL")
+  if (length(i) != 1L) stop("Expected exactly one SPUL attribute row.")
+  original <- vapply(fields, function(x) as.character(attributes[[x]][i]), "")
+  adopted <- list(SHEEPHEAD_BIOMASS_ALLOMETRIC_A, SHEEPHEAD_BIOMASS_ALLOMETRIC_B,
+                  "g", "cm", "TL", "Hamilton & Caselle (2015)",
+                  "Hamilton & Caselle (2015); doi:10.1098/rspb.2014.1817; Methods p. 2")
+  for (j in seq_along(fields)) attributes[[fields[j]]][i] <- adopted[[j]]
+  attr(attributes, "sheephead_override") <- data.frame(
+    field = fields, original = original, adopted = vapply(adopted, as.character, ""),
+    stringsAsFactors = FALSE)
+  attributes
 }
 
 # =============================================================================
 # Macrocystis stipe-to-biomass slope
 # =============================================================================
-# DECISION (2026-06, Emily review): use Reed et al. (2009)'s published pooled
-# stipe-density-to-standing-crop slope of 0.08.
+# HISTORICAL DECISION (superseded 2026-10-12 by SBC 112.15 monthly slopes):
+# the following paragraph records the former fixed 0.08 conversion.
 #
 #   Reed, D.C., Rassweiler, A. & Arkema, K.K. (2009). Density derived estimates
 #   of standing crop and net primary production in the giant kelp Macrocystis
@@ -200,31 +221,91 @@ bio_sheephead <- function(size_cm) {
 # appear in neither). Reed 2009's pooled 0.08 is the canonical, open-access,
 # already-cited SBC LTER calibration, so it is the defensible project standard.
 #
-# RESULT IMPACT: the analysis uses proportion-based lnRR, which is invariant
+# HISTORICAL FIXED-SLOPE IMPACT: proportion-based lnRR is invariant
 # under multiplicative rescaling of biomass, so meta-analysis effect sizes,
 # CIs, and weights are UNCHANGED. Only the absolute Macrocystis biomass values
 # in output/harmonized/harmonized_raw_responses.csv shift (~14% lower than the
-# previous 0.0925).
+# previous 0.0925). This invariance does not apply to monthly coefficients.
 # =============================================================================
-MACRO_AVE_SLOPE <- 0.08  # Reed et al. 2009, Mar Biol 156:2077-2083
+KELP_CALIBRATION_CSV <- Sys.getenv("DONHAM_KELP_CALIBRATION_CSV", unset =
+  file.path(dirname(here::here()), "Donham-Stier-CA-MPA-2026",
+            "data", "external", "sbc1275", "Macrocystis_Biomass_Relationships_20261016.csv"))
+
+read_macro_monthly_slopes <- function(path = KELP_CALIBRATION_CSV) {
+  if (!file.exists(path) || !unname(tools::md5sum(path)) %in%
+      c("50eda5d3664bf70780b3bead9674fac1", "8ddaf77458d21adfb6d0398cc1c51fda")) {
+    stop("Kelp calibration must match a verified SBC 112.15 or 127.5 source CSV.")
+  }
+  z <- utils::read.csv(path, check.names = FALSE, fileEncoding = "UTF-8-BOM")
+  if (all(c("x_variable", "y_variable") %in% names(z))) {
+    names(z)[names(z) == "x_variable"] <- "Independent_variable"
+    names(z)[names(z) == "y_variable"] <- "Dependent_variable"
+  }
+  if (nrow(z) != 108L || !all(c("model", "MONTH", "Independent_variable",
+      "Dependent_variable", "slope", "intercept") %in% names(z))) {
+    stop("Unexpected monthly kelp calibration schema.")
+  }
+  z <- z[z$model == 1, , drop = FALSE]
+  z <- z[order(z$MONTH), , drop = FALSE]
+  if (nrow(z) != 12L || !identical(as.integer(z$MONTH), 1:12) ||
+      any(!is.finite(z$slope) | z$slope <= 0 | z$intercept != 0) ||
+      !identical(z$Independent_variable,
+        paste0("Frond density (num m-2) in ", month.name)) ||
+      !identical(z$Dependent_variable,
+        paste0("FSC dry (kg dry mass m-2) in ", month.name))) {
+    stop("Expected all twelve monthly total dry-foliar-biomass slopes.")
+  }
+  stats::setNames(z$slope, as.character(z$MONTH))
+}
+
+MACRO_MONTHLY_SLOPES <- read_macro_monthly_slopes()
 
 #' @title Giant kelp biomass from stipe count
 #' @description Converts \emph{Macrocystis pyrifera} stipe counts to biomass
-#'   (grams) using MACRO_AVE_SLOPE (Reed et al. 2009 pooled slope = 0.08;
-#'   see note above the constant definition), multiplied by 1000 to convert
-#'   kg to g.
+#'   (grams dry foliar mass) using the recorded month and SBC 127.5 Macrocystis table,
+#'   model 1, multiplied by 1000 to convert kg to g.
 #' @param stipe Numeric vector of stipe counts (or stipe density per m^2).
 #'   PISCO records stipes per individual; KFM records per-plant stipe counts
 #'   in the KFM_Macrocystis_RawData file. LTER stores its counts in a column
 #'   named FRONDS, but per Li (LTER) these are the same structural unit
 #'   (stipes = fronds for this purpose), so all three programs feed compatible
 #'   counts into bio_macro().
-#' @note MACRO_AVE_SLOPE = 0.08 (Reed et al. 2009). Because the analysis uses
-#'   proportion-based lnRR, the choice of slope does not affect meta-analysis
-#'   effect sizes; it only rescales absolute biomass.
+#' @param month Recorded survey month (1-12), one per count or one shared month.
+#' @note Foliar mass excludes holdfasts and sporophylls. Month-specific
+#'   conversion is not assumed to cancel from annual response ratios.
 #' @return Numeric vector of biomass estimates (grams).
-bio_macro <- function(stipe) {
-  stipe * MACRO_AVE_SLOPE * 1000
+bio_macro <- function(stipe, month, slopes = MACRO_MONTHLY_SLOPES) {
+  if (length(month) == 1L) month <- rep(month, length(stipe))
+  month <- suppressWarnings(as.numeric(as.character(month)))
+  if (length(month) != length(stipe) || any(!is.finite(month) |
+      month != floor(month) | month < 1 | month > 12) ||
+      any(!is.na(stipe) & (!is.finite(stipe) | stipe < 0)) ||
+      length(slopes) != 12L || !setequal(names(slopes), as.character(1:12)) ||
+      any(!is.finite(slopes) | slopes <= 0)) {
+    stop("Kelp conversion requires nonnegative counts and recorded months 1-12.")
+  }
+  stipe * unname(slopes[as.character(month)]) * 1000
+}
+
+bootstrap_macro_monthly <- function(stipe, month, count, n_boot) {
+  mass <- bio_macro(stipe, month)
+  if (!length(stipe) || anyNA(stipe) || length(count) != 1L ||
+      !is.finite(count) || count <= 0 || count != floor(count) ||
+      length(n_boot) != 1L || !is.finite(n_boot) || n_boot <= 0 || n_boot != floor(n_boot)) {
+    stop("Invalid dated kelp bootstrap inputs.")
+  }
+  totals <- matrix(NA_real_, nrow = n_boot, ncol = 2L)
+  for (i in seq_len(n_boot)) {
+    if (length(stipe) == 1L) {
+      # Preserve the old RNG stream for later pools, but never sample 1:stipe.
+      invisible(sample(stipe, count, replace = TRUE))
+      indices <- rep.int(1L, count)
+    } else {
+      indices <- sample.int(length(stipe), count, replace = TRUE)
+    }
+    totals[i, ] <- c(sum(stipe[indices]), sum(mass[indices]))
+  }
+  list(count = mean(totals[, 1L]), biomass = mean(totals[, 2L]))
 }
 
 
@@ -310,7 +391,7 @@ bootstrap_biomass <- function(count, size_freq_indices, size_freq_table,
 
   s <- matrix(NA, nrow = n_resamples, ncol = n)
   for (k in 1:n_resamples) {
-    s[k, ] <- sample(a, n, replace = TRUE)
+    s[k, ] <- a[sample.int(length(a), n, replace = TRUE)]
   }
 
   # Direct vectorized call. biomass_fun is already vectorized, so applying
@@ -509,7 +590,9 @@ standardize_species_names <- function(names) {
 # EXCLUDED_REFERENCE_SITES
 #   PISCO reference (control) site codes to exclude from the analysis.
 #   These sites are dropped during PISCO processing (04_pisco_processing.R)
-#   because they lack matching MPA-reference pairs or have data quality issues.
+#   following inherited suitability choices attributed to Scott Hamilton in
+#   Emily Donham's original script (pBACIPS_PISCO_V10.R, lines 24 and 572).
+#   Specific habitat/depth reasons for each excluded site remain undocumented.
 #
 # EXCLUDED_MPAS
 #   MPA names to exclude entirely from all analyses. Reasons include:
@@ -519,8 +602,10 @@ standardize_species_names <- function(names) {
 #
 # EXCLUDED_KFM_SITES
 #   KFM (Kelp Forest Monitoring) transect codes to exclude. These are
-#   Anacapa Island transects that fall within the 1978 SMR boundary (pre-MLPA
-#   protection) and would confound the MLPA-era before/after analysis.
+#   inherited exclusions across several islands. The original script gives
+#   two rule classes: short records where long histories exist, and sites on
+#   the wrong side of an island where a better reference exists. It does not
+#   assign a reason to every code. These are NOT all 1978 Anacapa transects.
 #   Used in 05_kfm_processing.R.
 #
 # SHEEPHEAD_ONLY_MPAS
@@ -595,10 +680,11 @@ SHEEPHEAD_ONLY_MPAS <- c(
   "Santa Barbara Island SMR"
 )
 
-# Curated subset of SHEEPHEAD_ONLY_MPAS re-included for sheephead-specific
-# analyses. Inclusion criterion: regulations protect SHEEPHEAD specifically
-# (i.e., no take of finfish at the SMCA), so the MPA functions like an SMR
-# from sheephead's perspective.
+# Curated subset of the inherited restricted-inclusion list. This is not a
+# legal protection class: Blue Cavern and Long Point are no-take, Farnsworth
+# permits selected pelagic fisheries, and Swamis permits shore hook-and-line.
+# Keep membership pending contributor confirmation; legal rules alone do not
+# explain the programme-specific exclusions. See data/mpa_take_regulations.csv.
 #
 # Removed 2026-04 (per Emily review):
 #   - "Dana Point SMCA": permits take of lobster, finfish, and urchins,
@@ -616,7 +702,7 @@ SHEEPHEAD_REINCLUSION_MPAS <- c(
   "Long Point SMR"
 )
 
-#' @title Re-include sheephead-only MPAs for sheephead analysis
+#' @title Re-include curated MPA records for sheephead analysis
 #' @description After sheephead-only MPAs are removed from the main dataset
 #'   (to prevent over-representation), this function extracts the rows that
 #'   should be added back for sheephead-specific analyses. It handles

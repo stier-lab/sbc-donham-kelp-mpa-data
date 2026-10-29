@@ -42,6 +42,15 @@ data/ALL_sizefreq_2024.csv
 The current tracked harmonized outputs are included under `output/harmonized/`.
 Do not add raw monitoring extracts, lab Drive paths, or local symlinks to git.
 
+Giant-kelp biomass uses the twelve monthly model-1 dry-foliar slopes from SBC 127.5 (Nelson et al. 2026), applied to each recorded month before annual averaging. The verified source CSV is pinned in the sibling analysis repository at `data/external/sbc1275/`. The previous SBC112.15 table remains supported only for explicit historical reproduction through `DONHAM_KELP_CALIBRATION_CSV`. KFM retains dated plant-record resampling and the existing survey matching rules.
+
+PISCO and LTER sheephead biomass use Hamilton & Caselle (2015):
+`W(g) = 0.0144 x TL(cm)^3.04`, multiplied by size-class counts before averaging.
+The original PISCO species table is never rewritten; processing overrides its
+SPUL row in memory and exports the source record. `code/promote_sheephead_allometry.py`
+promotes only the verified PISCO/Bio records from a staged full rebuild, retains
+all other canonical CSV lines, and records checksums in `sheephead_allometry.json`.
+
 ## Output
 
 The pipeline produces 4 harmonized CSVs in `output/harmonized/`:

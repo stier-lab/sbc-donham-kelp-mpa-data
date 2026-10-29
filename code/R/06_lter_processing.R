@@ -657,7 +657,7 @@ lter.macro.site$frondDen <- safe_divide(lter.macro.site$FRONDS, lter.macro.site$
 
 # Convert stipe density (LTER calls this FRONDS, but per Li these are the same
 # structural unit KFM records as Stipe_Count) to biomass via bio_macro().
-lter.macro.site$biomass <- bio_macro(lter.macro.site$frondDen)
+lter.macro.site$biomass <- bio_macro(lter.macro.site$frondDen, lter.macro.site$MONTH)
 
 # Summarise: quad -> transect -> site -> MPA level
 # This hierarchical averaging accounts for the nested sampling design
@@ -799,8 +799,9 @@ lter.fish.sub.site <- subset(lter.fish.sub.site, COUNT != -99999)  # -99999 = LT
 
 # Calculate sheephead biomass using bio_sheephead() from 01_utils.R
 # Allometric W = a * L^b where L = total length (cm)
-# Coefficients from Cowen (1990), defined in 00c_analysis_constants.R
-lter.fish.sub.site$biomass <- bio_sheephead(lter.fish.sub.site$SIZE)
+# Coefficients defined in 00c_analysis_constants.R (also Hamilton & Caselle 2015).
+# knb-lter-sbc.17.39 defines COUNT as the number of same-sized individuals.
+lter.fish.sub.site$biomass <- lter.fish.sub.site$COUNT * bio_sheephead(lter.fish.sub.site$SIZE)
 n_na_fish_bio <- sum(is.na(lter.fish.sub.site$biomass))
 lter.fish.sub.site$biomass[is.na(lter.fish.sub.site$biomass)] <- 0
 if (n_na_fish_bio > 0) {

@@ -1,0 +1,35 @@
+{
+  "package": "knb-lter-sbc.112.15",
+  "model": 1,
+  "calibration_md5": "50eda5d3664bf70780b3bead9674fac1",
+  "mass_basis": "dry foliar",
+  "conversion": "recorded month before annual aggregation",
+  "files": {
+    "harmonized_raw_responses.csv": {
+      "rows": 6280,
+      "changed_rows": 532,
+      "changes": {
+        "LTER/Bio": 92,
+        "KFM/Den": 1,
+        "KFM/Bio": 162,
+        "PISCO/Bio": 277
+      },
+      "non_target_rows_preserved": 4984,
+      "before_md5": "206e530c49963ef870d981e14fee24fb",
+      "after_md5": "0d53b51ee87042c0bc5f056bcdfe55c1"
+    },
+    "harmonized_response_ratios.csv": {
+      "rows": 3341,
+      "changed_rows": 354,
+      "changes": {
+        "PISCO/Bio": 142,
+        "KFM/Bio": 169,
+        "LTER/Bio": 43
+      },
+      "non_target_rows_preserved": 2599,
+      "before_md5": "ed8e5f3413e1ffba8eea448743c9068d",
+      "after_md5": "0167c2bb4aedb83ca068cc5e680336c2"
+    }
+  },
+  "applied": true
+}

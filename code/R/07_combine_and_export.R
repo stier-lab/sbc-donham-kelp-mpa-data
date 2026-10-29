@@ -20,9 +20,10 @@
 #   Some MPAs only have data for certain taxa. We:
 #   - Exclude MPAs from SHEEPHEAD_ONLY_MPAS list from main analysis
 #   - Re-include a curated subset (SHEEPHEAD_REINCLUSION_MPAS in 01_utils.R)
-#     specifically for sheephead-targeted analyses, restricted to MPAs whose
-#     regulations actually protect sheephead (i.e., no take of finfish)
-#   - This prevents sheephead from being over-represented in cross-taxa summaries.
+#     specifically for sheephead-targeted analyses.
+#   - These inherited lists are curation decisions, not legal protection classes.
+#     In particular, Swamis permits shore hook-and-line and several listed areas
+#     protect all focal taxa. Contributor reconciliation remains outstanding.
 #
 # WHAT "CROSS-TAXA SUMMARIES" MEANS HERE (per Emily review, 2026-04):
 #   Some downstream summaries (e.g., the joint multilevel meta-analysis in
@@ -459,8 +460,14 @@ if (n_cross_program > 0) {
 # They are the current analysis-ready dataset snapshot for the manuscript; final
 # public archival routing should be confirmed before submission.
 
-harmonized_dir <- here::here("output", "harmonized")
+harmonized_dir <- Sys.getenv("DONHAM_HARMONIZED_OUTPUT",
+                            unset = here::here("output", "harmonized"))
 dir.create(harmonized_dir, recursive = TRUE, showWarnings = FALSE)
+
+if (!exists("PISCO.sheephead.allometry")) stop("PISCO sheephead source record is missing.")
+jsonlite::write_json(PISCO.sheephead.allometry,
+  file.path(harmonized_dir, "pisco_sheephead_allometry_source.json"),
+  pretty = TRUE, auto_unbox = TRUE, digits = NA)
 
 # --- Validate response ratio data before export ---
 rr_required_cols <- c("CA_MPA_Name_Short", "year", "y", "lnDiff", "mpa", "reference",

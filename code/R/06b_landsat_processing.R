@@ -7,7 +7,7 @@
 #   for the MPA pBACIPS analysis.
 #
 # WHAT THIS SCRIPT DOES:
-#   1. Imports Landsat kelp canopy area/biomass data
+#   1. Imports delivered annual maximum kelp canopy biomass
 #   2. Transforms data to long format for analysis
 #   3. Calculates annual mean biomass by MPA and status (MPA vs reference)
 #   4. Converts to proportions of time series maximum
@@ -15,21 +15,21 @@
 #   6. Assigns time since MPA and Before/After labels
 #
 # DATA SOURCE:
-#   Landsat-derived kelp canopy area from remote sensing analysis.
+#   Contributor-delivered Landsat canopy biomass, 1984-2021.
 #   This provides an independent measure of kelp abundance that:
 #   - Covers a broader spatial extent than diver surveys
-#   - Has consistent methodology back to 1984
-#   - Measures canopy area (proxy for biomass) from above
+#   - Extends the record back to 1984
+#   - Measures wet surface-canopy biomass, not diver dry foliar mass
 #
 # ADVANTAGES OF SATELLITE DATA:
-#   - No diver bias or sampling error
-#   - Continuous time series without gaps
+#   - Does not depend on diver observations
+#   - Retains missing years where paired observations are unavailable
 #   - Can detect large-scale patterns
 #
 # LIMITATIONS:
 #   - Only measures surface canopy (misses understory kelp)
 #   - Affected by water clarity and atmospheric conditions
-#   - Lower taxonomic resolution (just "kelp", not species)
+#   - Extraction masks and coverage rules remain incompletely documented
 #
 # INPUTS:
 #   - data/LANDSAT/MPA_Runs_new.csv
@@ -55,7 +55,7 @@ source(here::here("code", "R", "01_utils.R"))
 # ===========================================================================
 # Section 1: Import Landsat kelp biomass data
 # ===========================================================================
-# Landsat satellite imagery allows us to estimate kelp canopy area remotely.
+# The delivered product estimates wet kelp canopy biomass remotely.
 # The data is organized with one row per MPA-status-replicate combination and
 # one column per year (wide format). Each annual value is the MAX (peak) kelp
 # canopy biomass observed across the year, in kg wet weight, derived from
@@ -73,6 +73,9 @@ if (!file.exists(landsat_data_path)) {
 } else {
 
   fn <- read.csv(landsat_data_path)
+  source(here::here("code", "R", "landsat_reference_utils.R"))
+  fn <- remove_empty_landsat_references(fn,
+    read.csv(here::here("data", "landsat_empty_reference_corrections.csv")))
 
   # Validate expected columns in Landsat data
   required_landsat_cols <- c("MPA", "status", "rep", "lat", "lon")
@@ -205,7 +208,7 @@ if (!file.exists(landsat_data_path)) {
   # Reconstruct full response ratio dataframe with columns matching other modules
   Landsat.RR <- bio.sum.max.LANDSAT.diff
   Landsat.RR$y <- "Macrocystis pyrifera"
-  Landsat.RR$resp <- "Bio"  # Landsat only provides biomass (canopy area proxy), not density
+  Landsat.RR$resp <- "Bio"  # Wet canopy biomass, not diver dry foliar biomass or density.
   Landsat.RR$source <- "Landsat"
 
   # Merge with site metadata for type, Location, Hectares

@@ -240,8 +240,8 @@ COOKS_DISTANCE_NUMERATOR <- 4
 
 #' California sheephead (Semicossyphus pulcher) length-weight relationship
 #' biomass = a * length^b (where length is in cm and biomass in grams)
-#' Used in: 06_lter_processing.R (converting LTER sheephead length to biomass)
-#' Source: Cowen (1990) Environmental Biology of Fishes
+#' Used in: 04_pisco_processing.R and 06_lter_processing.R
+#' Source: Hamilton & Caselle (2015), Methods p. 2, doi:10.1098/rspb.2014.1817
 #' SHARED: Also defined in analysis repo 00c_analysis_constants.R
 SHEEPHEAD_BIOMASS_ALLOMETRIC_A <- 0.0144
 SHEEPHEAD_BIOMASS_ALLOMETRIC_B <- 3.04

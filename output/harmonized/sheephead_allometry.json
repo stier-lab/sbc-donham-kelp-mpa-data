@@ -1,0 +1,86 @@
+{
+  "release": "hamilton_caselle_2015_sheephead",
+  "source": {
+    "reference_doi": "10.1098/rspb.2014.1817",
+    "locator": "Methods p. 2",
+    "a": 0.0144,
+    "b": 3.04,
+    "length_type": "TL",
+    "length_unit": "cm",
+    "weight_unit": "g",
+    "count_weighted": true,
+    "original_lookup_md5": "6ccfacd18fff07208f510384e914a3b2",
+    "override": [
+      {
+        "field": "WL_a",
+        "original": "0.0238",
+        "adopted": "0.0144",
+        "_row": "WL_a"
+      },
+      {
+        "field": "WL_b",
+        "original": "2.8847",
+        "adopted": "3.04",
+        "_row": "WL_b"
+      },
+      {
+        "field": "WL_W_units",
+        "original": "g",
+        "adopted": "g",
+        "_row": "WL_W_units"
+      },
+      {
+        "field": "WL_L_units",
+        "original": "cm",
+        "adopted": "cm",
+        "_row": "WL_L_units"
+      },
+      {
+        "field": "WL_input_length",
+        "original": "TL",
+        "adopted": "TL",
+        "_row": "WL_input_length"
+      },
+      {
+        "field": "source_LW_LC",
+        "original": "VRG",
+        "adopted": "Hamilton & Caselle (2015)",
+        "_row": "source_LW_LC"
+      },
+      {
+        "field": "WL_Reference_Notes",
+        "original": "Williams et al. 2013",
+        "adopted": "Hamilton & Caselle (2015); doi:10.1098/rspb.2014.1817; Methods p. 2",
+        "_row": "WL_Reference_Notes"
+      }
+    ]
+  },
+  "scope": {
+    "programme": "PISCO",
+    "taxon": "Semicossyphus pulcher",
+    "response": "Bio"
+  },
+  "files": {
+    "harmonized_raw_responses.csv": {
+      "rows": 6280,
+      "changed_rows": 398,
+      "changes": {
+        "PISCO/Bio": 398
+      },
+      "non_target_rows_preserved": 5872,
+      "before_md5": "0d53b51ee87042c0bc5f056bcdfe55c1",
+      "after_md5": "c817b10fac60d714be510fc8547a2685"
+    },
+    "harmonized_response_ratios.csv": {
+      "rows": 3341,
+      "changed_rows": 204,
+      "changes": {
+        "PISCO/Bio": 204
+      },
+      "non_target_rows_preserved": 3137,
+      "before_md5": "0167c2bb4aedb83ca068cc5e680336c2",
+      "after_md5": "a0654cdb05e8fccfd58ab1bd6b13b4c9"
+    }
+  },
+  "applied": true
+}

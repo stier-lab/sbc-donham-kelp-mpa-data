@@ -142,6 +142,11 @@ Swath.site.PISCO$count[is.na(Swath.site.PISCO$count)] <- 0
 Swath.site.PISCO.sub <- subset(Swath.site.PISCO,
                                 month >= SURVEY_MONTH_START & month <= SURVEY_MONTH_END)
 
+Swath.site.PISCO.sub$macro_grams <- NA_real_
+macro_rows <- Swath.site.PISCO.sub$y == "MACPYRAD"
+Swath.site.PISCO.sub$macro_grams[macro_rows] <- bio_macro(
+  Swath.site.PISCO.sub$count[macro_rows], Swath.site.PISCO.sub$month[macro_rows])
+
 # ===========================================================================
 # Section 3: Aggregate Transect -> Zone -> Site Annual Means
 # ===========================================================================
@@ -154,25 +159,25 @@ Swath.site.PISCO.sub <- subset(Swath.site.PISCO,
 # ungroup() removes grouping so subsequent operations treat all rows equally
 Swath.site.PISCO.sum.int <- Swath.site.PISCO.sub %>%
   dplyr::group_by(year, month, site, zone, transect, y) %>%
-  dplyr::summarise_at(c("count"), sum) %>%
+  dplyr::summarise_at(c("count", "macro_grams"), sum) %>%
   dplyr::ungroup()
 
 # Average across months within each year (some years have multiple survey visits)
 # mean() calculates the arithmetic average
 Swath.site.PISCO.sum <- Swath.site.PISCO.sum.int %>%
   dplyr::group_by(year, site, zone, transect, y) %>%
-  dplyr::summarize_at(c("count"), mean)
+  dplyr::summarize_at(c("count", "macro_grams"), mean)
 
 # Average transects within zones to get zone-level means
 Swath.ave.zone <- Swath.site.PISCO.sum %>%
   dplyr::group_by(year, site, y, zone) %>%
-  dplyr::summarise_at(c("count"), mean)
+  dplyr::summarise_at(c("count", "macro_grams"), mean)
 
 # Average zones within sites to get site-level annual means
 # This is our final aggregation level for analysis
 Swath.ave <- Swath.ave.zone %>%
   dplyr::group_by(year, site, y) %>%
-  dplyr::summarise_at(c("count"), mean)
+  dplyr::summarise_at(c("count", "macro_grams"), mean)
 
 # ===========================================================================
 # Section 4: Merge with Site Table, Filter Southern CA, Subset Target Taxa
@@ -191,7 +196,8 @@ Swath.ave.site <- Swath.ave.site[complete.cases(Swath.ave.site$CA_MPA_Name_Short
 # Keep only needed columns. dplyr::select uses explicit column names
 # FIXED (2026-02-06): Converted from fragile column indices to explicit column names
 Swath.ave.site.sub <- Swath.ave.site %>%
-  dplyr::select(site, year, y, count, CA_MPA_Name_Short, site_designation, site_status, BaselineRegion)
+  dplyr::select(site, year, y, count, macro_grams, CA_MPA_Name_Short,
+                site_designation, site_status, BaselineRegion)
 
 # Only Southern California (our study region)
 # BaselineRegion categorizes sites by MLPA planning region
@@ -213,7 +219,8 @@ Swath.ave.site.PISCO.subset <- subset(Swath.ave.site.PISCO,
 # Density = count / area gives individuals per square meter for standardization.
 
 Swath.ave.site.PISCO.subset$Density <- Swath.ave.site.PISCO.subset$count / PISCO_SWATH_AREA_M2
-Swath.ave.site.PISCO.subset$biomass <- NA  # Placeholder - will be filled per-taxon below
+Swath.ave.site.PISCO.subset$biomass <-
+  Swath.ave.site.PISCO.subset$macro_grams / PISCO_SWATH_AREA_M2
 
 cat("  Swath taxa subset:", nrow(Swath.ave.site.PISCO.subset), "rows\n")
 
@@ -723,23 +730,27 @@ Swath.PISCO <- dplyr::select(Swath.PISCO.allbio,
 
 cat("  Processing PISCO fish data (sheephead)...\n")
 
-# NOTE: This species-attribute table (PISCO download) supplies the
-# length-weight coefficients (WL_a, WL_b, length conversions) used to convert
-# fish total-length to biomass at L723+ below. It is the per-species,
-# multi-taxon source for PISCO fish biomass, distinct from the single-species
-# scalar functions in 01_utils.R (e.g. bio_sheephead). Both exist by design:
-#   - 01_utils.R bio_sheephead() is used in 06_lter_processing.R, where the
-#     LTER fish dataset only stores raw lengths (no LW table).
-#   - This FishAtt table is used here so that any PISCO fish species (not
-#     just sheephead) can be converted to biomass with the same code path.
-# If we ever drop fish species other than sheephead, the table can be replaced
-# with a hand-coded sheephead row.
+# Other species retain the provider lookup. SPUL uses the verified Hamilton
+# total-length equation, matching LTER, through an explicit in-memory override.
 fish_att_path <- here::here("data", "PISCO", "spp_attribute_table_downloaded_9-13-22_SHSPUL.csv")
 FishAtt <- tryCatch(
   read.csv(fish_att_path),
   error = function(e) stop("Failed to read fish attribute table: ", fish_att_path,
                            "\n  ", e$message, call. = FALSE)
 )
+
+fish_att_md5 <- unname(tools::md5sum(fish_att_path))
+if (!identical(fish_att_md5, "6ccfacd18fff07208f510384e914a3b2")) {
+  stop("Original fish attribute table changed; review its source before applying the override.")
+}
+FishAtt <- apply_sheephead_allometry(FishAtt)
+PISCO.sheephead.allometry <- list(
+  reference_doi = "10.1098/rspb.2014.1817", locator = "Methods p. 2",
+  a = SHEEPHEAD_BIOMASS_ALLOMETRIC_A, b = SHEEPHEAD_BIOMASS_ALLOMETRIC_B,
+  length_type = "TL", length_unit = "cm", weight_unit = "g",
+  count_weighted = TRUE, original_lookup_md5 = fish_att_md5,
+  override = attr(FishAtt, "sheephead_override"))
+cat("  SPUL override: W(g) = 0.0144 * TL(cm)^3.04; original lookup preserved.\n")
 
 fish_path <- here::here("data", "PISCO", "MLPA_kelpforest_fish_2024.csv")
 Fish <- tryCatch(
@@ -974,14 +985,7 @@ All_PISCO.short.sub <- assign_time_from_site_table(All_PISCO.short.sub, Site)
 # ===========================================================================
 # Section 13: Calculate Macrocystis Biomass from Stipe Density
 # ===========================================================================
-# Giant kelp (Macrocystis pyrifera) biomass is estimated from stipe density
-# using an empirical conversion factor (bio_macro() in 01_utils.R).
-# This is applied after time assignment because it only applies to MACPYRAD.
-
-# bio_macro() from utils: stipe_density * ave_slope * 1000
-All_PISCO.short.sub$biomass <- ifelse(All_PISCO.short.sub$y == "MACPYRAD",
-                                      bio_macro(All_PISCO.short.sub$density),
-                                      All_PISCO.short.sub$biomass)
+# Kelp mass was converted with the survey month before annual averaging above.
 
 # ===========================================================================
 # Section 14: Average Across MPA/Reference Sites

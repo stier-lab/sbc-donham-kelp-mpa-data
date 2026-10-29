@@ -84,14 +84,18 @@ These are the LTER's own tabular exports, distinct from the MBON harmonization. 
 
 ### 2.2 LTER fish
 
-- **File:** `data/LTER/Annual_fish_comb_20240307.csv` (93,812 rows)
-- **EDI package:** `knb-lter-sbc.17.29`
-- **EDI metadata viewer:** https://portal.edirepository.org/nis/metadataviewer?packageid=knb-lter-sbc.17.29
+- **File:** `data/LTER/Annual_fish_comb_20240307.csv` (93,811 data rows; header excluded)
+- **EDI package:** `knb-lter-sbc.17.39` (published 2024-03-07)
+- **DOI:** https://doi.org/10.6073/pasta/6ea061f660a7dc939686f51613b5ff0e
+- **EDI metadata viewer:** https://portal.edirepository.org/nis/metadataviewer?packageid=knb-lter-sbc.17.39
+- **Exact-release EML:** https://pasta.lternet.edu/package/metadata/eml/knb-lter-sbc/17/39; retrieved via [DataONE resolve](https://cn.dataone.org/cn/v2/resolve/https%3A%2F%2Fpasta.lternet.edu%2Fpackage%2Fmetadata%2Feml%2Fknb-lter-sbc%2F17%2F39) on 2026-10-10 after direct PASTA access was denied.
+- **Release verification:** EML `physical/objectName`, `numberOfRecords` and MD5 authentication match the local file: `Annual_fish_comb_20240307.csv`, 93,811 and `ddf0cb97132a35aede43a8057709ffee`. The EML DOI alternate identifier and [EDI citation service](https://cite.edirepository.org/cite/knb-lter-sbc.17.39?style=RAW) both identify the DOI above and version 39.
 - **Citation:**
-  > Reed, D.C. & R.J. Miller. *SBC LTER: Reef: Kelp Forest Community Dynamics: Abundance and size of reef fish, ongoing since 2000.* Environmental Data Initiative.
+  > Reed, D.C. & R.J. Miller. 2024. *SBC LTER: Reef: Kelp Forest Community Dynamics: Fish abundance* (ver. 39). Environmental Data Initiative. https://doi.org/10.6073/pasta/6ea061f660a7dc939686f51613b5ff0e
 - **Schema:** `YEAR`, `MONTH`, `DATE`, `SITE`, `TRANSECT`, `QUAD`, `SIDE`, `VIS`, `SP_CODE`, `SIZE`, `COUNT`, `AREA` (20 or 80 m², occasional 40), taxonomy fields.
+- **COUNT semantics** (exact-release EML verified 2026-10-10): COUNT is the number of individuals sharing the recorded SIZE, not one individual per row. SIZE is estimated individual size in cm; `-99999` denotes unavailable/not-recorded COUNT or SIZE. No new provider communication is asserted by this metadata verification.
 - **AREA conventions** (verified empirically 2026-05-04): 80 m² for "BIG" mobile fish (sheephead and other large-bodied species; 60,304 obs); 20 m² for "CRYPTIC" small benthic fish (gobies, blennies, sculpins; 32,877 obs); 40 m² for an intermediate subset (630 obs). Sheephead (SP_CODE = SPUL) is uniformly on the 80 m² protocol.
-- **How we use it:** Filter to `SCIENTIFIC_NAME == "Semicossyphus pulcher"`, defensive AREA check, then density and biomass via `bio_sheephead()`. See `06_lter_processing.R::Section 6`.
+- **How we use it:** Filter to `SCIENTIFIC_NAME == "Semicossyphus pulcher"`, defensive AREA check, then row biomass = `COUNT * bio_sheephead(SIZE)` before existing transect/site/MPA aggregation; density continues to use COUNT. COUNT weighting was corrected on 2026-10-10. See `06_lter_processing.R::Section 6` and the focused, dry-run-first `export_lter_sheephead_count.R` driver.
 
 ### 2.3 LTER lobster
 
@@ -145,8 +149,8 @@ These are the PISCO subtidal community surveys (Partnership for Interdisciplinar
 - **Provenance:** PISCO species attribute lookup, distributed alongside the PISCO kelp-forest community data. Filename suffix `_SHSPUL` denotes a hand-tag added during this analysis (the species code for *Semicossyphus pulcher*, sheephead).
 - **Same data-paper citation as 3.1** (Malone et al. 2022).
 - **Schema:** `data_type`, `group`, `pisco_classcode`, `high_abundance`, `ecologically_significant`, ..., `WL_a`, `WL_b`, `LC.a._for_WL`, `LC.b._for_WL`, `WL_input_length`, `LC_type_for_WL`, `genus`, `species`, `common_name`, etc.
-- **Length-weight coefficients (`WL_a`, `WL_b`) ultimately derive from FishBase** (Froese & Pauly, www.fishbase.org) and species-specific allometric publications compiled by PISCO.
-- **How we use it:** Joined to fish counts for biomass calculation `biomass = N × a × L^b` (with optional standard-length-to-total-length conversion). See `04_pisco_processing.R::Section 9`.
+- **Coefficient sources:** Individual rows identify their lookup/publication sources. The original SPUL row contains 0.0238 and 2.8847 but names Williams et al. (2013), whose published standard-length equation is different. That exact numerical pair's source was not verified.
+- **How we use it:** The original CSV is preserved (MD5 `6ccfacd18fff07208f510384e914a3b2`). `apply_sheephead_allometry()` overrides only the in-memory SPUL row with Hamilton & Caselle (2015), Methods p. 2: `W(g) = 0.0144 x TL(cm)^3.04`, DOI 10.1098/rspb.2014.1817. Both PISCO and LTER multiply individual mass by recorded size-class abundance before aggregation. Other fish retain their original lookup rows. The source/override record is exported as `pisco_sheephead_allometry_source.json`; the scoped promotion and current-input check use `sheephead_allometry.json`.
 
 ---
 
@@ -214,13 +218,15 @@ These are the PISCO subtidal community surveys (Partnership for Interdisciplinar
   - **EDI package:** `knb-lter-sbc.74` (current revision 18+)
   - **EDI metadata:** https://portal.edirepository.org/nis/mapbrowse?packageid=knb-lter-sbc.74.18
   - **SBC catalog:** https://sbclter.msi.ucsb.edu/data/catalog/package/?package=knb-lter-sbc.74
-  - The LTER package ships **quarterly mean** biomass per pixel. Tom Bell aggregates to annual MAX per MPA polygon, consistent with the Bell et al. 2023 *Kelpwatch* convention.
+  - The recovered `CAkelpCanopyEnv_2021.nc` records quarterly biomass in wet kg per 900 m^2 pixel. Quarterly pixel sums followed by annual maxima reproduce many delivered values, but not all values or missingness patterns. The precise extraction masks and coverage rules are not fully reconstructed; Kelpwatch is methodological context, not proof of the delivered extraction recipe.
 - **Methodology citations:**
   > Cavanaugh, K.C., Siegel, D.A., Reed, D.C., & Dennison, P.E. (2011). Environmental controls of giant-kelp biomass in the Santa Barbara Channel, California. *Marine Ecology Progress Series* 429: 1–17. https://doi.org/10.3354/meps09141
   > Bell, T.W., Allen, J.G., Cavanaugh, K.C., & Siegel, D.A. (2020). Three decades of variability in California's giant kelp forests from the Landsat satellites. *Remote Sensing of Environment* 238: 110811. https://doi.org/10.1016/j.rse.2018.06.039
   > Bell, T.W., Cavanaugh, K.C., Saccomanno, V.R., Houskeeper, H.F., Eddy, N. et al. (2023). Kelpwatch: A new visualization and analysis tool to explore kelp canopy dynamics. *PLOS ONE* 18(3): e0271477. https://doi.org/10.1371/journal.pone.0271477
 - **Schema:** `MPA`, `status`, `rep`, `lat`, `lon`, then 38 year columns (1984–2021), each cell holding annual MAX canopy biomass (kg wet weight).
-- **How we use it:** Read directly into the analysis-side pipeline (bypassing the per-program processing scripts) as the authoritative kelp source. Supplements the in-water Macrocystis density data from PISCO/KFM/LTER.
+- **How we use it:** `06b_landsat_processing.R` removes only the six verified empty second-reference rows listed in `data/landsat_empty_reference_corrections.csv` before averaging. Observed zeros in occupied slots remain; years without a remaining reference observation are missing. The original 60-row CSV is preserved. `code/R/export_landsat_correction.R` regenerates the 718 paired MPA-years and 1,436 status-year annual indices, using the existing scaling and zero-offset calculation. Diver inputs are unchanged. Satellite canopy and diver-derived dry foliar biomass are distinct measurements; the synthesis combines source-specific contrasts, not interchangeable physical masses.
+
+The correction is pinned by `output/harmonized/landsat_reference_correction.json` and the matching analysis-repository release marker. Rebuild from this repository with `Rscript code/R/export_landsat_correction.R /path/to/Donham-Stier-CA-MPA-2026`. The analysis repository then explicitly rebuilds its reference registry after refitting the primary histories.
 
 ---
 
@@ -233,10 +239,21 @@ The pipeline applies length-weight or count-stipe-to-biomass relationships in co
 | `bio_lobster()` | *Panulirus interruptus* CL (mm) → biomass (g) | SBC LTER allometric calibration; cf. Barsky 2001, *CDFG Lobster Assessment.* |
 | `bio_redurch()` | *Mesocentrotus franciscanus* test diameter (mm) → biomass (g) | SBC LTER allometric calibration; cf. Ebert 2010, *Sea Urchins: Biology and Ecology* (Academic Press). |
 | `bio_purpurch()` | *Strongylocentrotus purpuratus* test diameter (mm) → biomass (g) | SBC LTER allometric calibration; cf. Ebert 2010. |
-| `bio_sheephead()` | *Semicossyphus pulcher* TL (cm) → biomass (g) | SBC LTER allometric calibration; cf. Cowen 1990, *Environmental Biology of Fishes.* |
-| `bio_macro()` | *Macrocystis pyrifera* stipe count → biomass (g) | Mean of six site-specific stipe-biomass slopes from SBC LTER kelp allometric calibration: Rassweiler, A., Reed, D.C., Harrer, S.L., & Nelson, J.C. 2018. Improved estimates of net primary production, growth, and standing crop of *Macrocystis pyrifera* in Southern California. *Ecology* 99(9): 2132. https://doi.org/10.1002/ecy.2440 |
+| `bio_sheephead()` / `apply_sheephead_allometry()` | *Semicossyphus pulcher* TL (cm) to individual mass (g); multiply by count before aggregation | Hamilton & Caselle (2015), Methods p. 2, DOI 10.1098/rspb.2014.1817; a = 0.0144, b = 3.04 in both PISCO and LTER. |
+| `bio_macro(stipe, month)` | *Macrocystis pyrifera* stipe count or density → dry foliar biomass (g or g m^-2) | Survey-month slope from SBC 112.15 Table 5 model 1 times 1000; Rassweiler et al. (2026), DOI 10.6073/pasta/710844a10e2fe8873a4b49d97999d549. |
 
-The `bio_macro` calibration window is documented in `01_utils.R` as an Emily-action-item to verify against the Rassweiler 2018 *Ecology* supplement (paywalled, accessible via UCSB Wiley access). Public LTER protocols describe the calibration as month-specific (12 monthly slopes), not May–Oct only.
+SBC `knb-lter-sbc.112.15` Table 5 was recovered through DataONE on 2026-10-12.
+Its model 1 supplies twelve zero-intercept monthly slopes for total dry foliar
+standing crop (0.07272-0.11996 kg dry mass per frond). It does not supply the
+previous 0.08 constant or the previously used six-value mean. Month-specific
+conversion now precedes annual aggregation; annual lnRRs were rebuilt rather
+than assumed unchanged. The source snapshot and reproducible check are in the
+analysis repository under `data/external/sbc11215/` and
+`code/audit_kelp_calibration.py`. KFM resamples whole dated size records after
+conversion, retaining site-year abundance matching; the surveys are not
+necessarily month-matched. A single-record R sampling bug was corrected in
+one unpaired 2007 density observation; no annual density ratio changed.
+See the analysis repository's `docs/MONTHLY_KELP_REFIT_2026-10-12.md`.
 
 ---
 

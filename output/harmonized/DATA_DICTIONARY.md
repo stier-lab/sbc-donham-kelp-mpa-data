@@ -143,7 +143,7 @@ Lobster pool by method (PANINT):
 | `bio_lobster()` | Lobster CL (mm) → biomass (g) | SBC LTER allometric calibration (cf. Barsky 2001, CDFG) |
 | `bio_redurch()` | Red urchin diameter (mm) → biomass (g) | SBC LTER allometric calibration (cf. Ebert 2010) |
 | `bio_purpurch()` | Purple urchin diameter (mm) → biomass (g) | SBC LTER allometric calibration (cf. Ebert 2010) |
-| `bio_sheephead()` | Sheephead TL (cm) → biomass (g) | SBC LTER allometric calibration (cf. Cowen 1990) |
+| `bio_sheephead()` / `apply_sheephead_allometry()` | Sheephead TL (cm) to individual mass (g), multiplied by size-class count | Hamilton & Caselle (2015), Methods p. 2, DOI 10.1098/rspb.2014.1817; W = 0.0144 TL^3.04 in PISCO and LTER |
 | `bio_macro()` | Macrocystis stipe count → biomass (g) | Mean of six site-specific slopes from SBC LTER kelp allometry, **fit to May–October survey data only** (the LTER canopy-biomass calibration period). |
 
 Sheephead biomass is only available from PISCO (size data) and LTER (size data). KFM lacks fish sizes and contributes density only.
